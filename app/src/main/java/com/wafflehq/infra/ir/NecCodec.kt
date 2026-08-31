@@ -6,6 +6,10 @@ object NecCodec {
     const val MAX_INDEX = CODE_COUNT - 1
     const val CARRIER_FREQUENCY_HZ = 38000
 
+    // Reine Signallaufzeit eines Frames: 50 ms (alle Bits 0) bis 86 ms (alle Bits 1),
+    // Ø-Fall (16/16) ~68 ms – begrenzt die erreichbare Rate unabhängig vom Sendeintervall.
+    const val TYPICAL_FRAME_DURATION_MS = 68L
+
     private const val HEADER_MARK = 9000
     private const val HEADER_SPACE = 4500
     private const val BIT_MARK = 560

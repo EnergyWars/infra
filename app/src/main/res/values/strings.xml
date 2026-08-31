@@ -25,4 +25,8 @@
 
     <string name="scan_start_value_label">Start value</string>
     <string name="scan_apply">Apply</string>
+
+    <string name="scan_speed_label">Speed</string>
+    <string name="scan_speed_value">%1$d ms · ~%2$d codes/s</string>
+    <string name="scan_speed_hint">Physically capped at about 12–14 codes/s by the NEC protocol, regardless of the slider.</string>
 </resources>

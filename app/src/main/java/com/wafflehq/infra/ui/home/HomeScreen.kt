@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -46,6 +47,7 @@ import com.wafflehq.infra.ir.NecCodec
 import com.wafflehq.infra.ui.theme.AppRadius
 import com.wafflehq.infra.ui.theme.AppSpacing
 import com.wafflehq.infra.ui.theme.MonoNumeralStyle
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,6 +129,11 @@ fun HomeScreen(
                     modifier = Modifier.padding(start = AppSpacing.sm),
                 )
             }
+
+            SpeedSlider(
+                intervalMs = uiState.transmitIntervalMs,
+                onIntervalChanged = viewModel::onIntervalChanged,
+            )
 
             StartValueRow(
                 text = uiState.startValueText,
@@ -220,6 +227,42 @@ private fun StartValueRow(
         OutlinedButton(onClick = onConfirm, enabled = enabled) {
             Text(stringResource(R.string.scan_apply))
         }
+    }
+}
+
+@Composable
+private fun SpeedSlider(intervalMs: Long, onIntervalChanged: (Long) -> Unit) {
+    val ratePerSecond = 1000f / (intervalMs + NecCodec.TYPICAL_FRAME_DURATION_MS)
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(R.string.scan_speed_label),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                text = stringResource(
+                    R.string.scan_speed_value,
+                    intervalMs,
+                    ratePerSecond.roundToInt(),
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = intervalMs.toFloat(),
+            onValueChange = { onIntervalChanged(it.roundToInt().toLong()) },
+            valueRange = MIN_TRANSMIT_INTERVAL_MS.toFloat()..MAX_TRANSMIT_INTERVAL_MS.toFloat(),
+        )
+        Text(
+            text = stringResource(R.string.scan_speed_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

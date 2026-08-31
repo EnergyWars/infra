@@ -21,6 +21,8 @@ import javax.inject.Inject
 
 val STEP_SIZES = listOf(1000, 500, 100, 50, 25, 10, 5, 2, 1)
 const val TRANSMIT_INTERVAL_MS = 150L
+const val MIN_TRANSMIT_INTERVAL_MS = 0L
+const val MAX_TRANSMIT_INTERVAL_MS = 500L
 private const val PERSIST_EVERY = 10
 
 data class ScanUiState(
@@ -29,6 +31,7 @@ data class ScanUiState(
     val isFinished: Boolean = false,
     val hasIrEmitter: Boolean = true,
     val startValueText: String = "0",
+    val transmitIntervalMs: Long = TRANSMIT_INTERVAL_MS,
 )
 
 @HiltViewModel
@@ -74,7 +77,7 @@ class HomeViewModel @Inject constructor(
                     if (next % PERSIST_EVERY == 0) {
                         scanStateRepository.setCurrentIndex(next)
                     }
-                    delay(TRANSMIT_INTERVAL_MS)
+                    delay(_uiState.value.transmitIntervalMs)
                 }
             } finally {
                 withContext(NonCancellable) {
@@ -88,6 +91,11 @@ class HomeViewModel @Inject constructor(
         scanJob?.cancel()
         scanJob = null
         _uiState.update { it.copy(isRunning = false) }
+    }
+
+    fun onIntervalChanged(ms: Long) {
+        val clamped = ms.coerceIn(MIN_TRANSMIT_INTERVAL_MS, MAX_TRANSMIT_INTERVAL_MS)
+        _uiState.update { it.copy(transmitIntervalMs = clamped) }
     }
 
     fun onStartValueTextChanged(text: String) {

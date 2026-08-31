@@ -25,4 +25,8 @@
 
     <string name="scan_start_value_label">Startwert</string>
     <string name="scan_apply">Übernehmen</string>
+
+    <string name="scan_speed_label">Geschwindigkeit</string>
+    <string name="scan_speed_value">%1$d ms · ~%2$d Codes/s</string>
+    <string name="scan_speed_hint">Physikalisch durch das NEC-Protokoll auf rund 12–14 Codes/s begrenzt, unabhängig vom Regler.</string>
 </resources>

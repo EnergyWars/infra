@@ -149,6 +149,32 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `interval change is clamped to the allowed range`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onIntervalChanged(-50)
+        assertEquals(MIN_TRANSMIT_INTERVAL_MS, vm.uiState.value.transmitIntervalMs)
+
+        vm.onIntervalChanged(MAX_TRANSMIT_INTERVAL_MS + 1000)
+        assertEquals(MAX_TRANSMIT_INTERVAL_MS, vm.uiState.value.transmitIntervalMs)
+    }
+
+    @Test
+    fun `interval change speeds up the running loop immediately`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onPlayPauseClicked()
+        vm.onIntervalChanged(MIN_TRANSMIT_INTERVAL_MS)
+
+        dispatcher.scheduler.advanceTimeBy(MIN_TRANSMIT_INTERVAL_MS * 5 + 1)
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(vm.uiState.value.currentIndex > 3)
+    }
+
+    @Test
     fun `reaching the last index stops and marks the scan finished`() = runTest(dispatcher) {
         every { scanStateRepository.currentIndex } returns MutableStateFlow(NecCodec.MAX_INDEX)
         val vm = viewModel()
