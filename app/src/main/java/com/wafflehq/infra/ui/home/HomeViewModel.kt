@@ -1,0 +1,121 @@
+package com.wafflehq.infra.ui.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.wafflehq.infra.data.scan.ScanStateRepository
+import com.wafflehq.infra.ir.IrTransmitter
+import com.wafflehq.infra.ir.NecCodec
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+
+val STEP_SIZES = listOf(1000, 500, 100, 50, 25, 10, 5, 2, 1)
+const val TRANSMIT_INTERVAL_MS = 150L
+private const val PERSIST_EVERY = 10
+
+data class ScanUiState(
+    val currentIndex: Int = 0,
+    val isRunning: Boolean = false,
+    val isFinished: Boolean = false,
+    val hasIrEmitter: Boolean = true,
+    val startValueText: String = "0",
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val irTransmitter: IrTransmitter,
+    private val scanStateRepository: ScanStateRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ScanUiState(hasIrEmitter = irTransmitter.hasEmitter))
+    val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
+
+    private var scanJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            val saved = scanStateRepository.currentIndex.first().coerceIn(0, NecCodec.MAX_INDEX)
+            _uiState.update { it.copy(currentIndex = saved, startValueText = saved.toString()) }
+        }
+    }
+
+    fun onPlayPauseClicked() {
+        if (_uiState.value.isRunning) pause() else play()
+    }
+
+    private fun play() {
+        val state = _uiState.value
+        if (state.isRunning || !state.hasIrEmitter) return
+
+        _uiState.update { it.copy(isRunning = true, isFinished = false) }
+        scanJob = viewModelScope.launch {
+            try {
+                while (isActive) {
+                    val index = _uiState.value.currentIndex
+                    irTransmitter.transmit(NecCodec.buildFrame(index))
+
+                    val next = index + 1
+                    if (next > NecCodec.MAX_INDEX) {
+                        _uiState.update { it.copy(isRunning = false, isFinished = true) }
+                        return@launch
+                    }
+
+                    _uiState.update { it.copy(currentIndex = next, startValueText = next.toString()) }
+                    if (next % PERSIST_EVERY == 0) {
+                        scanStateRepository.setCurrentIndex(next)
+                    }
+                    delay(TRANSMIT_INTERVAL_MS)
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    scanStateRepository.setCurrentIndex(_uiState.value.currentIndex)
+                }
+            }
+        }
+    }
+
+    private fun pause() {
+        scanJob?.cancel()
+        scanJob = null
+        _uiState.update { it.copy(isRunning = false) }
+    }
+
+    fun onStartValueTextChanged(text: String) {
+        if (text.isEmpty() || text.all { it.isDigit() }) {
+            _uiState.update { it.copy(startValueText = text) }
+        }
+    }
+
+    fun onStartValueConfirmed() {
+        if (_uiState.value.isRunning) return
+        val parsed = _uiState.value.startValueText.toIntOrNull() ?: _uiState.value.currentIndex
+        setIndex(parsed)
+    }
+
+    fun onStep(delta: Int) {
+        if (_uiState.value.isRunning) return
+        setIndex(_uiState.value.currentIndex + delta)
+    }
+
+    private fun setIndex(target: Int) {
+        val clamped = target.coerceIn(0, NecCodec.MAX_INDEX)
+        _uiState.update {
+            it.copy(currentIndex = clamped, startValueText = clamped.toString(), isFinished = false)
+        }
+        viewModelScope.launch { scanStateRepository.setCurrentIndex(clamped) }
+    }
+
+    override fun onCleared() {
+        scanJob?.cancel()
+    }
+}

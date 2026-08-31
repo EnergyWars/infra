@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Infra</string>
+
+    <string name="label_back">Zurück</string>
+    <string name="label_settings">Einstellungen</string>
+
+    <string name="cd_open_settings">Einstellungen öffnen</string>
+
+    <string name="settings_theme_system">Systemstandard</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+
+    <string name="scan_no_emitter_title">Kein Infrarot-Sender gefunden</string>
+    <string name="scan_no_emitter_body">Dieses Gerät hat keinen IR-Blaster. Senden ist nicht möglich.</string>
+
+    <string name="scan_position">%1$d / %2$d</string>
+    <string name="scan_address_command">Adresse %1$d · Befehl %2$d</string>
+
+    <string name="scan_finished_title">Fertig</string>
+    <string name="scan_finished_body">Alle 65536 Codes wurden gesendet.</string>
+
+    <string name="scan_play">Start</string>
+    <string name="scan_pause">Pause</string>
+
+    <string name="scan_start_value_label">Startwert</string>
+    <string name="scan_apply">Übernehmen</string>
+</resources>
