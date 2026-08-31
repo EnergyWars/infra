@@ -14,7 +14,7 @@ private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 @Singleton
 class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val themeModeKey = stringPreferencesKey("theme_mode")
 

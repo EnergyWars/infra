@@ -14,7 +14,7 @@ private val Context.scanDataStore by preferencesDataStore(name = "scan_state")
 
 @Singleton
 class ScanStateRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val currentIndexKey = intPreferencesKey("current_index")
 

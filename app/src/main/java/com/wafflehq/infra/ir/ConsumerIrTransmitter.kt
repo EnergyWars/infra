@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class ConsumerIrTransmitter @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : IrTransmitter {
 
     private val manager: ConsumerIrManager? by lazy {
