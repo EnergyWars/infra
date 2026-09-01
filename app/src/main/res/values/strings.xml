@@ -16,14 +16,17 @@
 
     <string name="scan_position">%1$d / %2$d</string>
     <string name="scan_address_command">Address %1$d · Command %2$d</string>
+    <string name="scan_hex_display">Hex %1$s</string>
 
     <string name="scan_finished_title">Done</string>
     <string name="scan_finished_body">All 65536 codes have been sent.</string>
 
     <string name="scan_play">Start</string>
     <string name="scan_pause">Pause</string>
+    <string name="scan_send_single">Send this code</string>
 
     <string name="scan_start_value_label">Start value</string>
+    <string name="scan_hex_value_label">Hex value</string>
     <string name="scan_apply">Apply</string>
 
     <string name="scan_speed_label">Speed</string>

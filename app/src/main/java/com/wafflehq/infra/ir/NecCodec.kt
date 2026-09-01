@@ -21,6 +21,23 @@ object NecCodec {
 
     fun commandOf(index: Int): Int = index and 0xFF
 
+    fun hexOf(index: Int): String {
+        val address = addressOf(index)
+        val command = commandOf(index)
+        return "%02X%02X%02X%02X".format(
+            address,
+            address.inv() and 0xFF,
+            command,
+            command.inv() and 0xFF,
+        )
+    }
+
+    fun indexFromHex(hex: String): Int? {
+        if (hex.length != 8) return null
+        val bytes = hex.chunked(2).map { it.toIntOrNull(16) ?: return null }
+        return (bytes[0] shl 8) or bytes[2]
+    }
+
     fun buildFrame(index: Int): IntArray {
         val address = addressOf(index)
         val command = commandOf(index)

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,14 @@ fun HomeScreen(
 
             CodeDisplayCard(currentIndex = uiState.currentIndex)
 
+            OutlinedButton(
+                onClick = viewModel::onSendCurrentClicked,
+                enabled = uiState.hasIrEmitter && !uiState.isRunning,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.scan_send_single))
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
                 LinearProgressIndicator(
                     progress = { uiState.currentIndex / NecCodec.MAX_INDEX.toFloat() },
@@ -142,6 +151,13 @@ fun HomeScreen(
                 onConfirm = viewModel::onStartValueConfirmed,
             )
 
+            HexValueRow(
+                text = uiState.hexText,
+                enabled = !uiState.isRunning,
+                onTextChanged = viewModel::onHexTextChanged,
+                onConfirm = viewModel::onHexConfirmed,
+            )
+
             StepButtonsSection(
                 enabled = !uiState.isRunning,
                 onStep = viewModel::onStep,
@@ -167,6 +183,11 @@ private fun CodeDisplayCard(currentIndex: Int) {
             Text(
                 text = currentIndex.toString(),
                 style = MaterialTheme.typography.displayMedium.merge(MonoNumeralStyle),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.scan_hex_display, NecCodec.hexOf(currentIndex)),
+                style = MaterialTheme.typography.titleMedium.merge(MonoNumeralStyle),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -225,6 +246,41 @@ private fun StartValueRow(
             modifier = Modifier.weight(1f),
         )
         OutlinedButton(onClick = onConfirm, enabled = enabled) {
+            Text(stringResource(R.string.scan_apply))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HexValueRow(
+    text: String,
+    enabled: Boolean,
+    onTextChanged: (String) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChanged,
+            label = { Text(stringResource(R.string.scan_hex_value_label)) },
+            enabled = enabled,
+            singleLine = true,
+            shape = RoundedCornerShape(AppRadius.textField),
+            textStyle = MaterialTheme.typography.bodyLarge.merge(MonoNumeralStyle).copy(textAlign = TextAlign.Start),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { onConfirm() }),
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(onClick = onConfirm, enabled = enabled && text.length == 8) {
             Text(stringResource(R.string.scan_apply))
         }
     }

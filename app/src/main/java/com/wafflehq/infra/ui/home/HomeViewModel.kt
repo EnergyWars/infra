@@ -31,6 +31,7 @@ data class ScanUiState(
     val isFinished: Boolean = false,
     val hasIrEmitter: Boolean = true,
     val startValueText: String = "0",
+    val hexText: String = NecCodec.hexOf(0),
     val transmitIntervalMs: Long = TRANSMIT_INTERVAL_MS,
 )
 
@@ -48,7 +49,9 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val saved = scanStateRepository.currentIndex.first().coerceIn(0, NecCodec.MAX_INDEX)
-            _uiState.update { it.copy(currentIndex = saved, startValueText = saved.toString()) }
+            _uiState.update {
+                it.copy(currentIndex = saved, startValueText = saved.toString(), hexText = NecCodec.hexOf(saved))
+            }
         }
     }
 
@@ -73,7 +76,9 @@ class HomeViewModel @Inject constructor(
                         return@launch
                     }
 
-                    _uiState.update { it.copy(currentIndex = next, startValueText = next.toString()) }
+                    _uiState.update {
+                        it.copy(currentIndex = next, startValueText = next.toString(), hexText = NecCodec.hexOf(next))
+                    }
                     if (next % PERSIST_EVERY == 0) {
                         scanStateRepository.setCurrentIndex(next)
                     }
@@ -115,10 +120,36 @@ class HomeViewModel @Inject constructor(
         setIndex(_uiState.value.currentIndex + delta)
     }
 
+    fun onHexTextChanged(text: String) {
+        val upper = text.uppercase()
+        if (upper.length <= 8 && upper.all { it.isDigit() || it in 'A'..'F' }) {
+            _uiState.update { it.copy(hexText = upper) }
+        }
+    }
+
+    fun onHexConfirmed() {
+        if (_uiState.value.isRunning) return
+        val parsed = NecCodec.indexFromHex(_uiState.value.hexText) ?: return
+        setIndex(parsed)
+    }
+
+    fun onSendCurrentClicked() {
+        val state = _uiState.value
+        if (state.isRunning || !state.hasIrEmitter) return
+        viewModelScope.launch {
+            irTransmitter.transmit(NecCodec.buildFrame(state.currentIndex))
+        }
+    }
+
     private fun setIndex(target: Int) {
         val clamped = target.coerceIn(0, NecCodec.MAX_INDEX)
         _uiState.update {
-            it.copy(currentIndex = clamped, startValueText = clamped.toString(), isFinished = false)
+            it.copy(
+                currentIndex = clamped,
+                startValueText = clamped.toString(),
+                hexText = NecCodec.hexOf(clamped),
+                isFinished = false,
+            )
         }
         viewModelScope.launch { scanStateRepository.setCurrentIndex(clamped) }
     }

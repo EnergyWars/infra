@@ -85,4 +85,34 @@ class NecCodecTest {
         val b = NecCodec.buildFrame(101)
         assertTrue(!a.contentEquals(b))
     }
+
+    @Test
+    fun `hexOf encodes address, inverted address, command and inverted command`() {
+        assertEquals("FF00FF00", NecCodec.hexOf(65535))
+        assertEquals("00FF00FF", NecCodec.hexOf(0))
+        assertEquals("12ED34CB", NecCodec.hexOf(0x1234))
+    }
+
+    @Test
+    fun `indexFromHex reconstructs the index from address and command bytes`() {
+        assertEquals(65535, NecCodec.indexFromHex("FF00FF00"))
+        assertEquals(0, NecCodec.indexFromHex("00FF00FF"))
+        assertEquals(0x1234, NecCodec.indexFromHex("12ED34CB"))
+        assertEquals(0x1234, NecCodec.indexFromHex("12ed34cb".uppercase()))
+    }
+
+    @Test
+    fun `indexFromHex rejects malformed input`() {
+        assertEquals(null, NecCodec.indexFromHex("FF00FF"))
+        assertEquals(null, NecCodec.indexFromHex("FF00FF0G"))
+        assertEquals(null, NecCodec.indexFromHex(""))
+    }
+
+    @Test
+    fun `hexOf and indexFromHex round-trip every byte boundary`() {
+        val samples = listOf(0, 1, 255, 256, 65535, 0xABCD)
+        for (index in samples) {
+            assertEquals(index, NecCodec.indexFromHex(NecCodec.hexOf(index)))
+        }
+    }
 }
