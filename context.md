@@ -69,10 +69,13 @@ app/src/test/java/com/wafflehq/infra/
   damit der Switch beim Umschalten die letzte Position je Modus behält.
   Persistenz getrennt über `current_index` / `current_extended_index` /
   `extended_mode` in `ScanStateRepository`.
-- Bekannter, vom Extended-NEC-Feature unabhängiger Vorab-Bug: In dieser
-  Umgebung schlagen `HomeViewModelTest > step is ignored while running` und
-  `> play transmits and advances the index over time` weiterhin fehl
-  (OOM/Assertion in der Play-Loop-Coroutine unter `StandardTestDispatcher`
-  + `kotlinx-coroutines-debug`). Bestätigt bereits auf unverändertem
-  `master` vor dieser Änderung reproduzierbar – nicht behoben, da
-  außerhalb des Aufgabenumfangs.
+- Behobener Vorab-Bug (unabhängig vom Extended-NEC-Feature, bereits auf
+  unverändertem `master` reproduzierbar): mehrere `HomeViewModelTest`
+  starteten den Scan (`onPlayPauseClicked()`), pausierten ihn aber vor
+  Testende nie wieder. Da `Dispatchers.setMain(dispatcher)` denselben
+  `TestCoroutineScheduler` wie `runTest(dispatcher)` nutzt, versucht
+  `runTest` beim Aufräumen, die noch aktive Play-Loop-Coroutine bis zum
+  Ende (bis zu `NecCodec.MAX_INDEX` Iterationen) durchlaufen zu lassen –
+  das führte zu `OutOfMemoryError`/Assertion-Fehlern. Fix: betroffene
+  Tests pausieren jetzt explizit (`onPlayPauseClicked()` + `advanceUntilIdle()`)
+  vor Testende, bevor der Scheduler drained wird.

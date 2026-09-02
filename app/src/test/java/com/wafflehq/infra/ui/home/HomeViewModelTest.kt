@@ -84,6 +84,11 @@ class HomeViewModelTest {
         dispatcher.scheduler.runCurrent()
 
         assertEquals(3, vm.uiState.value.currentIndex)
+
+        // Pause before the test ends: otherwise runTest's teardown drains the shared
+        // scheduler and runs the still-active loop all the way to NecCodec.MAX_INDEX.
+        vm.onPlayPauseClicked()
+        dispatcher.scheduler.advanceUntilIdle()
     }
 
     @Test
@@ -140,10 +145,14 @@ class HomeViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         vm.onPlayPauseClicked()
+        // The isRunning guard is checked synchronously, so no need to run the loop
+        // coroutine here — doing so would just let it advance the index on its own.
         vm.onStep(500)
-        dispatcher.scheduler.runCurrent()
 
         assertEquals(0, vm.uiState.value.currentIndex)
+
+        vm.onPlayPauseClicked()
+        dispatcher.scheduler.advanceUntilIdle()
     }
 
     @Test
@@ -184,6 +193,9 @@ class HomeViewModelTest {
         dispatcher.scheduler.runCurrent()
 
         assertTrue(vm.uiState.value.currentIndex > 3)
+
+        vm.onPlayPauseClicked()
+        dispatcher.scheduler.advanceUntilIdle()
     }
 
     @Test
