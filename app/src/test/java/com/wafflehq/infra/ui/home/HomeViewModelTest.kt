@@ -29,6 +29,8 @@ class HomeViewModelTest {
     private lateinit var irTransmitter: IrTransmitter
     private lateinit var scanStateRepository: ScanStateRepository
     private var persistedIndex = 0
+    private var persistedExtendedIndex = 0
+    private var persistedExtendedMode = false
 
     @Before
     fun setUp() {
@@ -38,8 +40,18 @@ class HomeViewModelTest {
 
         scanStateRepository = mockk()
         every { scanStateRepository.currentIndex } returns MutableStateFlow(0)
+        every { scanStateRepository.currentExtendedIndex } returns MutableStateFlow(0)
+        every { scanStateRepository.isExtendedMode } returns MutableStateFlow(false)
         val slot = slot<Int>()
         coEvery { scanStateRepository.setCurrentIndex(capture(slot)) } answers { persistedIndex = slot.captured }
+        val extendedSlot = slot<Int>()
+        coEvery {
+            scanStateRepository.setCurrentExtendedIndex(capture(extendedSlot))
+        } answers { persistedExtendedIndex = extendedSlot.captured }
+        val modeSlot = slot<Boolean>()
+        coEvery {
+            scanStateRepository.setExtendedMode(capture(modeSlot))
+        } answers { persistedExtendedMode = modeSlot.captured }
     }
 
     @After
@@ -186,5 +198,58 @@ class HomeViewModelTest {
         assertFalse(vm.uiState.value.isRunning)
         assertTrue(vm.uiState.value.isFinished)
         assertEquals(NecCodec.MAX_INDEX, vm.uiState.value.currentIndex)
+    }
+
+    @Test
+    fun `enabling extended mode switches the index range and hex encoding`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onExtendedModeChanged(true)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isExtended)
+        assertEquals(NecCodec.EXTENDED_MAX_INDEX, vm.uiState.value.maxIndex)
+        assertEquals(NecCodec.hexOf(0, extended = true), vm.uiState.value.hexText)
+        assertTrue(persistedExtendedMode)
+    }
+
+    @Test
+    fun `switching modes remembers each mode's own position`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onStep(42)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(42, vm.uiState.value.currentIndex)
+
+        vm.onExtendedModeChanged(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, vm.uiState.value.currentIndex)
+
+        vm.onStep(1000)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1000, vm.uiState.value.currentIndex)
+
+        vm.onExtendedModeChanged(false)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(42, vm.uiState.value.currentIndex)
+
+        vm.onExtendedModeChanged(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1000, vm.uiState.value.currentIndex)
+    }
+
+    @Test
+    fun `hex confirmation in extended mode reads the full 16-bit address`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onExtendedModeChanged(true)
+        vm.onHexTextChanged(NecCodec.hexOf(0xABCD12, extended = true))
+        vm.onHexConfirmed()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0xABCD12, vm.uiState.value.currentIndex)
     }
 }

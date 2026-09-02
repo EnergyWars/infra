@@ -26,14 +26,19 @@ const val MAX_TRANSMIT_INTERVAL_MS = 500L
 private const val PERSIST_EVERY = 10
 
 data class ScanUiState(
-    val currentIndex: Int = 0,
+    val standardIndex: Int = 0,
+    val extendedIndex: Int = 0,
+    val isExtended: Boolean = false,
     val isRunning: Boolean = false,
     val isFinished: Boolean = false,
     val hasIrEmitter: Boolean = true,
     val startValueText: String = "0",
     val hexText: String = NecCodec.hexOf(0),
     val transmitIntervalMs: Long = TRANSMIT_INTERVAL_MS,
-)
+) {
+    val currentIndex: Int get() = if (isExtended) extendedIndex else standardIndex
+    val maxIndex: Int get() = NecCodec.maxIndex(isExtended)
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -48,9 +53,18 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val saved = scanStateRepository.currentIndex.first().coerceIn(0, NecCodec.MAX_INDEX)
+            val standard = scanStateRepository.currentIndex.first().coerceIn(0, NecCodec.MAX_INDEX)
+            val extended = scanStateRepository.currentExtendedIndex.first().coerceIn(0, NecCodec.EXTENDED_MAX_INDEX)
+            val isExtended = scanStateRepository.isExtendedMode.first()
             _uiState.update {
-                it.copy(currentIndex = saved, startValueText = saved.toString(), hexText = NecCodec.hexOf(saved))
+                val current = if (isExtended) extended else standard
+                it.copy(
+                    standardIndex = standard,
+                    extendedIndex = extended,
+                    isExtended = isExtended,
+                    startValueText = current.toString(),
+                    hexText = NecCodec.hexOf(current, isExtended),
+                )
             }
         }
     }
@@ -67,26 +81,32 @@ class HomeViewModel @Inject constructor(
         scanJob = viewModelScope.launch {
             try {
                 while (isActive) {
-                    val index = _uiState.value.currentIndex
-                    irTransmitter.transmit(NecCodec.buildFrame(index))
+                    val state = _uiState.value
+                    val extended = state.isExtended
+                    val index = state.currentIndex
+                    irTransmitter.transmit(NecCodec.buildFrame(index, extended))
 
                     val next = index + 1
-                    if (next > NecCodec.MAX_INDEX) {
+                    if (next > NecCodec.maxIndex(extended)) {
                         _uiState.update { it.copy(isRunning = false, isFinished = true) }
                         return@launch
                     }
 
                     _uiState.update {
-                        it.copy(currentIndex = next, startValueText = next.toString(), hexText = NecCodec.hexOf(next))
+                        withIndex(it, extended, next).copy(
+                            startValueText = next.toString(),
+                            hexText = NecCodec.hexOf(next, extended),
+                        )
                     }
                     if (next % PERSIST_EVERY == 0) {
-                        scanStateRepository.setCurrentIndex(next)
+                        persistIndex(next, extended)
                     }
                     delay(_uiState.value.transmitIntervalMs)
                 }
             } finally {
                 withContext(NonCancellable) {
-                    scanStateRepository.setCurrentIndex(_uiState.value.currentIndex)
+                    val finalState = _uiState.value
+                    persistIndex(finalState.currentIndex, finalState.isExtended)
                 }
             }
         }
@@ -129,29 +149,55 @@ class HomeViewModel @Inject constructor(
 
     fun onHexConfirmed() {
         if (_uiState.value.isRunning) return
-        val parsed = NecCodec.indexFromHex(_uiState.value.hexText) ?: return
+        val extended = _uiState.value.isExtended
+        val parsed = NecCodec.indexFromHex(_uiState.value.hexText, extended) ?: return
         setIndex(parsed)
+    }
+
+    fun onExtendedModeChanged(enabled: Boolean) {
+        if (_uiState.value.isRunning) return
+        _uiState.update {
+            val current = if (enabled) it.extendedIndex else it.standardIndex
+            it.copy(
+                isExtended = enabled,
+                startValueText = current.toString(),
+                hexText = NecCodec.hexOf(current, enabled),
+                isFinished = false,
+            )
+        }
+        viewModelScope.launch { scanStateRepository.setExtendedMode(enabled) }
     }
 
     fun onSendCurrentClicked() {
         val state = _uiState.value
         if (state.isRunning || !state.hasIrEmitter) return
         viewModelScope.launch {
-            irTransmitter.transmit(NecCodec.buildFrame(state.currentIndex))
+            irTransmitter.transmit(NecCodec.buildFrame(state.currentIndex, state.isExtended))
         }
     }
 
     private fun setIndex(target: Int) {
-        val clamped = target.coerceIn(0, NecCodec.MAX_INDEX)
+        val extended = _uiState.value.isExtended
+        val clamped = target.coerceIn(0, NecCodec.maxIndex(extended))
         _uiState.update {
-            it.copy(
-                currentIndex = clamped,
+            withIndex(it, extended, clamped).copy(
                 startValueText = clamped.toString(),
-                hexText = NecCodec.hexOf(clamped),
+                hexText = NecCodec.hexOf(clamped, extended),
                 isFinished = false,
             )
         }
-        viewModelScope.launch { scanStateRepository.setCurrentIndex(clamped) }
+        viewModelScope.launch { persistIndex(clamped, extended) }
+    }
+
+    private fun withIndex(state: ScanUiState, extended: Boolean, index: Int): ScanUiState =
+        if (extended) state.copy(extendedIndex = index) else state.copy(standardIndex = index)
+
+    private suspend fun persistIndex(index: Int, extended: Boolean) {
+        if (extended) {
+            scanStateRepository.setCurrentExtendedIndex(index)
+        } else {
+            scanStateRepository.setCurrentIndex(index)
+        }
     }
 
     override fun onCleared() {

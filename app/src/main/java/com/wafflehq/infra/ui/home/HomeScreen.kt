@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -89,7 +90,13 @@ fun HomeScreen(
                 )
             }
 
-            CodeDisplayCard(currentIndex = uiState.currentIndex)
+            CodeDisplayCard(currentIndex = uiState.currentIndex, isExtended = uiState.isExtended)
+
+            ExtendedModeRow(
+                isExtended = uiState.isExtended,
+                enabled = !uiState.isRunning,
+                onExtendedChanged = viewModel::onExtendedModeChanged,
+            )
 
             OutlinedButton(
                 onClick = viewModel::onSendCurrentClicked,
@@ -101,14 +108,14 @@ fun HomeScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
                 LinearProgressIndicator(
-                    progress = { uiState.currentIndex / NecCodec.MAX_INDEX.toFloat() },
+                    progress = { uiState.currentIndex / uiState.maxIndex.toFloat() },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     text = stringResource(
                         R.string.scan_position,
                         uiState.currentIndex,
-                        NecCodec.MAX_INDEX
+                        uiState.maxIndex
                     ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -118,7 +125,7 @@ fun HomeScreen(
             if (uiState.isFinished) {
                 NoticeCard(
                     title = stringResource(R.string.scan_finished_title),
-                    body = stringResource(R.string.scan_finished_body),
+                    body = stringResource(R.string.scan_finished_body, uiState.maxIndex + 1),
                     container = MaterialTheme.colorScheme.tertiaryContainer,
                     content = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
@@ -167,7 +174,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun CodeDisplayCard(currentIndex: Int) {
+private fun CodeDisplayCard(currentIndex: Int, isExtended: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(AppRadius.card),
@@ -186,20 +193,50 @@ private fun CodeDisplayCard(currentIndex: Int) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(R.string.scan_hex_display, NecCodec.hexOf(currentIndex)),
+                text = stringResource(R.string.scan_hex_display, NecCodec.hexOf(currentIndex, isExtended)),
                 style = MaterialTheme.typography.titleMedium.merge(MonoNumeralStyle),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = stringResource(
                     R.string.scan_address_command,
-                    NecCodec.addressOf(currentIndex),
+                    NecCodec.addressOf(currentIndex, isExtended),
                     NecCodec.commandOf(currentIndex),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun ExtendedModeRow(
+    isExtended: Boolean,
+    enabled: Boolean,
+    onExtendedChanged: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column {
+            Text(
+                text = stringResource(R.string.scan_extended_label),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                text = stringResource(R.string.scan_extended_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = isExtended,
+            onCheckedChange = onExtendedChanged,
+            enabled = enabled,
+        )
     }
 }
 

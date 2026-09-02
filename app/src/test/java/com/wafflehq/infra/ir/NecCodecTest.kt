@@ -115,4 +115,65 @@ class NecCodecTest {
             assertEquals(index, NecCodec.indexFromHex(NecCodec.hexOf(index)))
         }
     }
+
+    @Test
+    fun `extended code count covers 16-bit address times 8-bit command`() {
+        assertEquals(65536 * 256, NecCodec.EXTENDED_CODE_COUNT)
+        assertEquals(65536 * 256 - 1, NecCodec.EXTENDED_MAX_INDEX)
+        assertEquals(NecCodec.CODE_COUNT, NecCodec.codeCount(extended = false))
+        assertEquals(NecCodec.EXTENDED_CODE_COUNT, NecCodec.codeCount(extended = true))
+        assertEquals(NecCodec.MAX_INDEX, NecCodec.maxIndex(extended = false))
+        assertEquals(NecCodec.EXTENDED_MAX_INDEX, NecCodec.maxIndex(extended = true))
+    }
+
+    @Test
+    fun `extended addressOf reads a full 16-bit address`() {
+        assertEquals(0xABCD, NecCodec.addressOf(0xABCD12, extended = true))
+        assertEquals(0x12, NecCodec.commandOf(0xABCD12))
+
+        assertEquals(0xFFFF, NecCodec.addressOf(NecCodec.EXTENDED_MAX_INDEX, extended = true))
+        assertEquals(0xFF, NecCodec.commandOf(NecCodec.EXTENDED_MAX_INDEX))
+    }
+
+    @Test
+    fun `extended hexOf keeps the address free of a checksum byte`() {
+        assertEquals("ABCD12ED", NecCodec.hexOf(0xABCD12, extended = true))
+        assertEquals("FFFFFF00", NecCodec.hexOf(NecCodec.EXTENDED_MAX_INDEX, extended = true))
+        assertEquals("000000FF", NecCodec.hexOf(0, extended = true))
+    }
+
+    @Test
+    fun `extended indexFromHex reconstructs the 16-bit address and command`() {
+        assertEquals(0xABCD12, NecCodec.indexFromHex("ABCD12ED", extended = true))
+        assertEquals(NecCodec.EXTENDED_MAX_INDEX, NecCodec.indexFromHex("FFFFFF00", extended = true))
+        assertEquals(0, NecCodec.indexFromHex("000000FF", extended = true))
+    }
+
+    @Test
+    fun `extended hexOf and indexFromHex round-trip every byte boundary`() {
+        val samples = listOf(0, 1, 255, 256, 65535, 65536, 0xABCD12, NecCodec.EXTENDED_MAX_INDEX)
+        for (index in samples) {
+            assertEquals(index, NecCodec.indexFromHex(NecCodec.hexOf(index, extended = true), extended = true))
+        }
+    }
+
+    @Test
+    fun `extended buildFrame does not invert the address bytes`() {
+        val frame = NecCodec.buildFrame(0xABCD12, extended = true)
+        assertEquals(2 + 32 * 2 + 1, frame.size)
+
+        fun byteAt(byteIndex: Int): Int {
+            var value = 0
+            for (bit in 0 until 8) {
+                val space = frame[2 + (byteIndex * 8 + bit) * 2 + 1]
+                if (space == 1690) value = value or (1 shl bit)
+            }
+            return value
+        }
+
+        assertEquals(0xAB, byteAt(0))
+        assertEquals(0xCD, byteAt(1))
+        assertEquals(0x12, byteAt(2))
+        assertEquals(0x12.inv() and 0xFF, byteAt(3))
+    }
 }

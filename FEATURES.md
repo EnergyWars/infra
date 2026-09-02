@@ -17,6 +17,20 @@ Infrarot-Gerät (Fernseher, Klimaanlage, …) steuert.
 - Aktueller Stand (Index, Adresse, Befehl) wird groß angezeigt, dazu ein
   Fortschrittsbalken mit Positionsangabe „x / 65535"
 
+### Extended NEC
+
+- Switch schaltet zwischen Standard-NEC (65536 Codes) und Extended NEC
+  (16.777.216 Codes) um
+- Im Extended-Modus ist die Adresse 16 Bit breit und frei wählbar (keine
+  Prüfziffer/Inversion nötig); die letzten beiden Bytes (Befehl +
+  invertierter Befehl) bleiben wie im Standard-Modus
+- Hex-Eingabe bleibt in beiden Modi 8-stellig; im Extended-Modus legen die
+  ersten 4 Hex-Stellen die volle 16-Bit-Adresse direkt fest (mehr Freiheit
+  bei der Eingabe als im Standard-Modus)
+- Jeder Modus merkt sich seine eigene zuletzt erreichte Position getrennt
+  (auch über App-Neustarts hinweg) – ein Wechsel zurück springt nicht auf 0
+- Umschalten nur möglich, während der Scan pausiert ist
+
 ### Play / Pause
 
 - Start-Button beginnt beim aktuellen Index (initial 0) und sendet
@@ -65,9 +79,11 @@ Infrarot-Gerät (Fernseher, Klimaanlage, …) steuert.
 ### Tests
 
 - Unit-Tests für die NEC-Frame-Erzeugung (Header, Bitreihenfolge,
-  invertierte Prüfbytes, Adress-/Befehls-Aufteilung)
+  invertierte Prüfbytes, Adress-/Befehls-Aufteilung) inkl. Extended-NEC
+  (16-Bit-Adresse, Hex-Kodierung, Frame-Aufbau)
 - Unit-Tests für die Scan-Logik (Play/Pause, Startwert, Schrittweiten,
-  Grenzen, Abschluss, Verhalten ohne IR-Sender)
+  Grenzen, Abschluss, Verhalten ohne IR-Sender, Extended-NEC-Umschaltung
+  inkl. getrennter Positions-Erinnerung je Modus)
 
 ### Technisches
 

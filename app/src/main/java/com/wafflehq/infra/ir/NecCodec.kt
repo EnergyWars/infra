@@ -4,6 +4,8 @@ object NecCodec {
 
     const val CODE_COUNT = 65536
     const val MAX_INDEX = CODE_COUNT - 1
+    const val EXTENDED_CODE_COUNT = CODE_COUNT * 256
+    const val EXTENDED_MAX_INDEX = EXTENDED_CODE_COUNT - 1
     const val CARRIER_FREQUENCY_HZ = 38000
 
     // Reine Signallaufzeit eines Frames: 50 ms (alle Bits 0) bis 86 ms (alle Bits 1),
@@ -17,36 +19,51 @@ object NecCodec {
     private const val ONE_SPACE = 1690
     private const val TRAILING_MARK = 560
 
-    fun addressOf(index: Int): Int = (index shr 8) and 0xFF
+    fun codeCount(extended: Boolean): Int = if (extended) EXTENDED_CODE_COUNT else CODE_COUNT
+
+    fun maxIndex(extended: Boolean): Int = codeCount(extended) - 1
+
+    fun addressOf(index: Int, extended: Boolean = false): Int =
+        if (extended) (index shr 8) and 0xFFFF else (index shr 8) and 0xFF
 
     fun commandOf(index: Int): Int = index and 0xFF
 
-    fun hexOf(index: Int): String {
-        val address = addressOf(index)
+    fun hexOf(index: Int, extended: Boolean = false): String {
         val command = commandOf(index)
-        return "%02X%02X%02X%02X".format(
-            address,
-            address.inv() and 0xFF,
-            command,
-            command.inv() and 0xFF,
-        )
+        return if (extended) {
+            val address = addressOf(index, extended = true)
+            "%04X%02X%02X".format(address, command, command.inv() and 0xFF)
+        } else {
+            val address = addressOf(index)
+            "%02X%02X%02X%02X".format(
+                address,
+                address.inv() and 0xFF,
+                command,
+                command.inv() and 0xFF,
+            )
+        }
     }
 
-    fun indexFromHex(hex: String): Int? {
+    fun indexFromHex(hex: String, extended: Boolean = false): Int? {
         if (hex.length != 8) return null
         val bytes = hex.chunked(2).map { it.toIntOrNull(16) ?: return null }
-        return (bytes[0] shl 8) or bytes[2]
+        return if (extended) {
+            val address = (bytes[0] shl 8) or bytes[1]
+            (address shl 8) or bytes[2]
+        } else {
+            (bytes[0] shl 8) or bytes[2]
+        }
     }
 
-    fun buildFrame(index: Int): IntArray {
-        val address = addressOf(index)
+    fun buildFrame(index: Int, extended: Boolean = false): IntArray {
         val command = commandOf(index)
-        val bytes = intArrayOf(
-            address,
-            address.inv() and 0xFF,
-            command,
-            command.inv() and 0xFF,
-        )
+        val bytes = if (extended) {
+            val address = addressOf(index, extended = true)
+            intArrayOf((address shr 8) and 0xFF, address and 0xFF, command, command.inv() and 0xFF)
+        } else {
+            val address = addressOf(index)
+            intArrayOf(address, address.inv() and 0xFF, command, command.inv() and 0xFF)
+        }
 
         val pattern = IntArray(2 + bytes.size * 8 * 2 + 1)
         var i = 0

@@ -42,6 +42,7 @@ app/src/test/java/com/wafflehq/infra/
 | Feature | Status | Dateien |
 |---|---|---|
 | NEC-Code-Iteration (65536 Codes) + Senden | fertig | `ir/NecCodec.kt`, `ir/IrTransmitter.kt`, `ir/ConsumerIrTransmitter.kt` |
+| Extended NEC (16-Bit-Adresse ohne Prüfziffer, 16.777.216 Codes) per Switch umschaltbar, Position je Modus getrennt gemerkt | fertig | `ir/NecCodec.kt`, `ui/home/HomeViewModel.kt`, `ui/home/HomeScreen.kt`, `data/scan/ScanStateRepository.kt` |
 | Play/Pause + Persistenz | fertig | `ui/home/HomeViewModel.kt`, `data/scan/ScanStateRepository.kt` |
 | Startwert-Eingabe | fertig | `ui/home/HomeScreen.kt`, `ui/home/HomeViewModel.kt` |
 | Schrittweiten ±1000…±1 | fertig | `ui/home/HomeScreen.kt`, `ui/home/HomeViewModel.kt` |
@@ -60,3 +61,18 @@ app/src/test/java/com/wafflehq/infra/
   `HomeViewModel.kt`), nicht einstellbar.
 - Scan-Fortschritt wird beim Laufen nur alle 10 Codes persistiert
   (Performance), beim Pausieren/Abschluss aber immer sofort.
+- Extended NEC: Hex bleibt immer 8 Zeichen. Standard = Adresse(8 Bit) +
+  ~Adresse + Befehl(8 Bit) + ~Befehl. Extended = Adresse(16 Bit, frei, ohne
+  Prüfziffer) + Befehl(8 Bit) + ~Befehl – letzte beiden Bytes unverändert.
+  `NecCodec`-Funktionen nehmen dafür einen `extended: Boolean = false`
+  Parameter; `ScanUiState` hält `standardIndex`/`extendedIndex` getrennt,
+  damit der Switch beim Umschalten die letzte Position je Modus behält.
+  Persistenz getrennt über `current_index` / `current_extended_index` /
+  `extended_mode` in `ScanStateRepository`.
+- Bekannter, vom Extended-NEC-Feature unabhängiger Vorab-Bug: In dieser
+  Umgebung schlagen `HomeViewModelTest > step is ignored while running` und
+  `> play transmits and advances the index over time` weiterhin fehl
+  (OOM/Assertion in der Play-Loop-Coroutine unter `StandardTestDispatcher`
+  + `kotlinx-coroutines-debug`). Bestätigt bereits auf unverändertem
+  `master` vor dieser Änderung reproduzierbar – nicht behoben, da
+  außerhalb des Aufgabenumfangs.

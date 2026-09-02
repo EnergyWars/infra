@@ -19,11 +19,14 @@
     <string name="scan_hex_display">Hex %1$s</string>
 
     <string name="scan_finished_title">Fertig</string>
-    <string name="scan_finished_body">Alle 65536 Codes wurden gesendet.</string>
+    <string name="scan_finished_body">Alle %1$d Codes wurden gesendet.</string>
 
     <string name="scan_play">Start</string>
     <string name="scan_pause">Pause</string>
     <string name="scan_send_single">Diesen Code senden</string>
+
+    <string name="scan_extended_label">Extended NEC</string>
+    <string name="scan_extended_hint">16-Bit-Adresse ohne Prüfziffer, Befehl bleibt wie gehabt.</string>
 
     <string name="scan_start_value_label">Startwert</string>
     <string name="scan_hex_value_label">Hex-Wert</string>
