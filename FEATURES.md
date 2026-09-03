@@ -10,9 +10,16 @@ Infrarot-Gerät (Fernseher, Klimaanlage, …) steuert.
 ### Code-Iteration
 
 - Iteriert alle 65536 möglichen NEC-Codes (Adresse 0–255 × Befehl 0–255,
-  jeweils 8 Bit) einmal durch, jeder Code wird genau als ein NEC-Frame
-  gesendet (Standard-NEC-Protokoll, 38 kHz Trägerfrequenz, Header +
+  jeweils 8 Bit) einmal durch, jeder Code wird als ein NEC-Frame gesendet
+  (Standard-NEC-Protokoll, 38 kHz Trägerfrequenz, Header +
   32 Datenbits inkl. invertierter Prüfbytes + Abschluss-Mark)
+- Wie eine echte Fernbedienung bei kurzem Tastendruck folgen auf den Frame
+  zwei NEC-Repeat-Codes (9 ms Mark, 2,25 ms Space, 560 µs Mark) im
+  108-ms-Raster; eine Sendung dauert dadurch rund 228 ms
+- Bitreihenfolge: Jedes Byte wird MSB-zuerst gesendet, sodass der
+  angezeigte 8-stellige Hex-Wert exakt der Bitfolge auf der Leitung
+  entspricht (gleiche Konvention wie LIRC, IRremote und gängige
+  Fernbedienungs-Apps, z. B. `20DF10EF` für LG-Power)
 - Sendeintervall: 150 ms pro Code
 - Aktueller Stand (Index, Adresse, Befehl) wird groß angezeigt, dazu ein
   Fortschrittsbalken mit Positionsangabe „x / 65535"
@@ -27,6 +34,10 @@ Infrarot-Gerät (Fernseher, Klimaanlage, …) steuert.
 - Hex-Eingabe bleibt in beiden Modi 8-stellig; im Extended-Modus legen die
   ersten 4 Hex-Stellen die volle 16-Bit-Adresse direkt fest (mehr Freiheit
   bei der Eingabe als im Standard-Modus)
+- Wird im Standardmodus ein Hex-Wert übernommen, dessen zweites Byte nicht
+  die Inversion des ersten ist (z. B. `020250AF`), schaltet die App
+  automatisch in den Extended-Modus, statt den Code stillschweigend
+  umzuschreiben
 - Jeder Modus merkt sich seine eigene zuletzt erreichte Position getrennt
   (auch über App-Neustarts hinweg) – ein Wechsel zurück springt nicht auf 0
 - Umschalten nur möglich, während der Scan pausiert ist

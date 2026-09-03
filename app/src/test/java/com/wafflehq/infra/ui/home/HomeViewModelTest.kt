@@ -264,4 +264,34 @@ class HomeViewModelTest {
 
         assertEquals(0xABCD12, vm.uiState.value.currentIndex)
     }
+
+    @Test
+    fun `hex with a non-inverted address byte switches to extended mode automatically`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onHexTextChanged("020250AF")
+        vm.onHexConfirmed()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isExtended)
+        assertTrue(persistedExtendedMode)
+        assertEquals(0x020250, vm.uiState.value.currentIndex)
+        assertEquals("020250AF", vm.uiState.value.hexText)
+        assertEquals(0x020250, persistedExtendedIndex)
+    }
+
+    @Test
+    fun `hex with a standard checksum stays in standard mode`() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onHexTextChanged("20DF10EF")
+        vm.onHexConfirmed()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isExtended)
+        assertEquals(0x2010, vm.uiState.value.currentIndex)
+        assertEquals("20DF10EF", vm.uiState.value.hexText)
+    }
 }

@@ -1,6 +1,7 @@
 package com.wafflehq.infra.ir
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -77,6 +78,19 @@ class NecCodecTest {
             val space = frame[2 + bitIndex * 2 + 1]
             assertTrue(space == 560 || space == 1690)
         }
+    }
+
+    @Test
+    fun `frame transmits each hex byte most significant bit first`() {
+        val index = NecCodec.indexFromHex("20DF10EF")!!
+        val frame = NecCodec.buildFrame(index)
+        val expectedBits = "20DF10EF"
+            .chunked(2)
+            .joinToString("") { it.toInt(16).toString(2).padStart(8, '0') }
+        val actualBits = (0 until 32).joinToString("") { bitIndex ->
+            if (frame[2 + bitIndex * 2 + 1] == 1690) "1" else "0"
+        }
+        assertEquals(expectedBits, actualBits)
     }
 
     @Test
@@ -158,6 +172,55 @@ class NecCodecTest {
     }
 
     @Test
+    fun `transmission appends repeat codes on the 108 ms NEC period`() {
+        val frame = NecCodec.buildFrame(0x1234)
+        val transmission = NecCodec.buildTransmission(0x1234, repeats = 2)
+
+        assertEquals(frame.size + 1 + 3 + 1 + 3, transmission.size)
+        assertTrue(transmission.copyOfRange(0, frame.size).contentEquals(frame))
+
+        val gapAfterFrame = transmission[frame.size]
+        assertEquals(108_000, frame.sum() + gapAfterFrame)
+
+        val firstRepeat = transmission.copyOfRange(frame.size + 1, frame.size + 4)
+        assertTrue(firstRepeat.contentEquals(intArrayOf(9000, 2250, 560)))
+
+        val gapAfterRepeat = transmission[frame.size + 4]
+        assertEquals(108_000, firstRepeat.sum() + gapAfterRepeat)
+
+        val secondRepeat = transmission.copyOfRange(frame.size + 5, frame.size + 8)
+        assertTrue(secondRepeat.contentEquals(intArrayOf(9000, 2250, 560)))
+        assertEquals(560, transmission.last())
+    }
+
+    @Test
+    fun `transmission without repeats is the plain frame`() {
+        assertTrue(NecCodec.buildTransmission(0x1234, repeats = 0).contentEquals(NecCodec.buildFrame(0x1234)))
+    }
+
+    @Test
+    fun `transmission gap stays positive for the longest possible frame`() {
+        val transmission = NecCodec.buildTransmission(NecCodec.EXTENDED_MAX_INDEX, extended = true, repeats = 1)
+        assertTrue(transmission.all { it > 0 })
+    }
+
+    @Test
+    fun `default transmission uses the configured repeat count`() {
+        val frame = NecCodec.buildFrame(0)
+        assertEquals(frame.size + NecCodec.REPEAT_COUNT * 4, NecCodec.buildTransmission(0).size)
+    }
+
+    @Test
+    fun `requiresExtended detects an address byte that is not inverted`() {
+        assertTrue(NecCodec.requiresExtended("020250AF"))
+        assertTrue(NecCodec.requiresExtended("ABCD12ED"))
+        assertFalse(NecCodec.requiresExtended("20DF10EF"))
+        assertFalse(NecCodec.requiresExtended("00FF00FF"))
+        assertFalse(NecCodec.requiresExtended("020250"))
+        assertFalse(NecCodec.requiresExtended("0202G0AF"))
+    }
+
+    @Test
     fun `extended buildFrame does not invert the address bytes`() {
         val frame = NecCodec.buildFrame(0xABCD12, extended = true)
         assertEquals(2 + 32 * 2 + 1, frame.size)
@@ -166,7 +229,7 @@ class NecCodecTest {
             var value = 0
             for (bit in 0 until 8) {
                 val space = frame[2 + (byteIndex * 8 + bit) * 2 + 1]
-                if (space == 1690) value = value or (1 shl bit)
+                if (space == 1690) value = value or (1 shl (7 - bit))
             }
             return value
         }

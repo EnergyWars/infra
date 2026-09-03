@@ -84,7 +84,7 @@ class HomeViewModel @Inject constructor(
                     val state = _uiState.value
                     val extended = state.isExtended
                     val index = state.currentIndex
-                    irTransmitter.transmit(NecCodec.buildFrame(index, extended))
+                    irTransmitter.transmit(NecCodec.buildTransmission(index, extended))
 
                     val next = index + 1
                     if (next > NecCodec.maxIndex(extended)) {
@@ -149,8 +149,10 @@ class HomeViewModel @Inject constructor(
 
     fun onHexConfirmed() {
         if (_uiState.value.isRunning) return
-        val extended = _uiState.value.isExtended
-        val parsed = NecCodec.indexFromHex(_uiState.value.hexText, extended) ?: return
+        val hex = _uiState.value.hexText
+        val extended = _uiState.value.isExtended || NecCodec.requiresExtended(hex)
+        val parsed = NecCodec.indexFromHex(hex, extended) ?: return
+        if (extended && !_uiState.value.isExtended) onExtendedModeChanged(true)
         setIndex(parsed)
     }
 
@@ -172,7 +174,7 @@ class HomeViewModel @Inject constructor(
         val state = _uiState.value
         if (state.isRunning || !state.hasIrEmitter) return
         viewModelScope.launch {
-            irTransmitter.transmit(NecCodec.buildFrame(state.currentIndex, state.isExtended))
+            irTransmitter.transmit(NecCodec.buildTransmission(state.currentIndex, state.isExtended))
         }
     }
 

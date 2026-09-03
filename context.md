@@ -21,7 +21,7 @@ Vorrang.
 ```
 app/src/main/java/com/wafflehq/infra/
   InfraApp.kt, MainActivity.kt
-  ir/NecCodec.kt              – reine NEC-Frame-Erzeugung (Header, 32 Bit, Trailing-Mark)
+  ir/NecCodec.kt              – NEC-Frame-Erzeugung (Header, 32 Bit MSB-zuerst, Trailing-Mark) + Repeat-Codes
   ir/IrTransmitter.kt         – Interface (hasEmitter, transmit)
   ir/ConsumerIrTransmitter.kt – Android-Implementierung über ConsumerIrManager
   di/IrModule.kt              – bindet IrTransmitter -> ConsumerIrTransmitter
@@ -61,6 +61,17 @@ app/src/test/java/com/wafflehq/infra/
   `HomeViewModel.kt`), nicht einstellbar.
 - Scan-Fortschritt wird beim Laufen nur alle 10 Codes persistiert
   (Performance), beim Pausieren/Abschluss aber immer sofort.
+- `NecCodec.buildTransmission` = Frame + Lücke auf 108 ms + `REPEAT_COUNT`
+  (2) Repeat-Codes (9000/2250/560) im 108-ms-Raster; ViewModel sendet nur
+  darüber. `TYPICAL_FRAME_DURATION_MS` (228) fließt in die Ratenanzeige
+  des Speed-Sliders ein.
+- Bitreihenfolge in `NecCodec.buildFrame`: MSB-zuerst je Byte, damit der
+  Hex-Wert der Sendereihenfolge entspricht (LIRC-/IRremote-Konvention).
+  LSB-zuerst würde jedes Byte bit-gespiegelt senden, sodass Hex-Codes aus
+  anderen Apps nicht funktionieren.
+- `NecCodec.requiresExtended(hex)` erkennt Codes, deren Byte 2 nicht die
+  Inversion von Byte 1 ist; `HomeViewModel.onHexConfirmed` schaltet dann
+  automatisch auf Extended, damit der Code nicht umgeschrieben wird.
 - Extended NEC: Hex bleibt immer 8 Zeichen. Standard = Adresse(8 Bit) +
   ~Adresse + Befehl(8 Bit) + ~Befehl. Extended = Adresse(16 Bit, frei, ohne
   Prüfziffer) + Befehl(8 Bit) + ~Befehl – letzte beiden Bytes unverändert.
